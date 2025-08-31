@@ -1,13 +1,26 @@
+#pragma once
+
+// KMD Engine
+// Acesse o tutorial disponivel no arquivo 'Docs'
+// 
+// Atenção! Para funcionar corretamente é necessario o uso de SDL3, SDL3_image e SDL3_ttf. Configure manualmente no seu editor
+
 #include <iostream>
 #include <vector>
+#include <optional>
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-//
-// Classes Variaveis
-//
+// SDL globais
+
+extern SDL_Window* Window;
+extern SDL_Renderer* Renderer;
+
+// Classes Variaveis: Classes para funcionalidades adicionais
+
+	// Color: Sistema de cor no metodo RGBA
 
 struct ColorRGBA {
 
@@ -15,6 +28,8 @@ struct ColorRGBA {
 
 	ColorRGBA(int r = 0, int g = 0, int b = 0, int a = 255) : R(r), G(g), B(b), A(A) {};
 };
+
+	// iVector2: Vetores 2D para valores inteiros
 
 struct iVector2 {
 
@@ -43,6 +58,8 @@ struct iVector2 {
 	}
 };
 
+	// Vector2: Vetores 2D para valores flutuantes
+
 struct Vector2 {
 
 	float X, Y;
@@ -70,17 +87,39 @@ struct Vector2 {
 	}
 };
 
-//
-// Classes de corpos
-//
+	// Animator2D: Controla as animações e movimentação de imagens
+
+class Animator2D {
+public:
+
+
+};
+
+	// SpriteSheet: Representa texturas e a visibilidade de um Body
+
+class SpriteCore2D {
+public:
+
+	Animator2D* Animator = nullptr;
+
+	SDL_Texture* Texture = nullptr;
+	SDL_Surface* Surface = nullptr;
+
+	SDL_FRect TextureRect = {};
+
+	SpriteCore2D(std::string TexturePath);
+	~SpriteCore2D();
+};
+
+// Classes de corpos: Classes para qualquer coisa que esteja no jogo
 
 	// Hierarquia:
+	// 
 	// > VoidBody
 	// > > Body2D
 	// > > > Camera2D
-	//
 
-	// VoidBody
+	// VoidBody: A base de tudo, segura o sistema de hierarquia e identificação do corpo
 
 class VoidBody {
 public:
@@ -95,8 +134,10 @@ public:
 
 	//
 
-	VoidBody(const char* name);
+	VoidBody(const char* name = "Name Undefined");
 	virtual ~VoidBody();
+
+	//
 
 	void AddBody(VoidBody* body);
 
@@ -110,11 +151,15 @@ public:
 	//
 
 	virtual void _Ready() {};
+	virtual void _Destroyed() {};
+
 	virtual void _Process(double delta) {};
+
+	//
 
 };
 
-// Body2D
+	// Body2D: Segura as dimensoes e posição 2D do corpo
 
 class Body2D : public VoidBody {
 public:
@@ -122,31 +167,31 @@ public:
 	Vector2 Position = {};
 	Vector2 Scale = {};
 
-	Body2D(const char* name, Vector2 position, Vector2 scale) : VoidBody(name), Position(position), Scale(scale) {};
+	SpriteCore2D* SpriteCore = nullptr;
+	
+	std::optional<SDL_Rect> CollisionShape;
+
+	Body2D(const char* name = "Body2D Undefined", Vector2 position = {}, Vector2 scale = {})  : VoidBody(name), Position(position), Scale(scale) {};
+	~Body2D();
 };
 
-// Camera2D
+	// Camera2D: A camera define o que é visivel no jogo. Necessário para a inicialização do Core
+
 
 class Camera2D : public Body2D {
 public:
 
-	float Zoom  = 0;
+	float Zoom;
 
-	Camera2D(const char* name, Vector2 position, float start_zoom) : Body2D(name, position, { 1, 1 }), Zoom(start_zoom) {};
+	Camera2D(const char* name = "Camera2D Undefined Name", Vector2 position = {}, float zoom = 1.0f) : Body2D(name, position, {}), Zoom(zoom) {};
 
 	SDL_FRect GetCameraOffset(Body2D* body, iVector2 window_size);
 };
 
-//
-// Classe do nucleo
-//
+// Classe do Nucleo: O Core (Nucleo) é O cérebro por trás do funcionamento do jogo
 
 class KMD_Core {
-
 public:
-
-	SDL_Window* Window = nullptr;
-	SDL_Renderer* Renderer = nullptr;
 	
 	SDL_Event Event = {};
 
@@ -154,9 +199,9 @@ public:
 
 	//
 
-	Camera2D* CurrentCamera = nullptr;
+	Camera2D* CurrentCamera = nullptr; // Não é recomendado a alocação manual. Use InsertCamera(Camera2D Camera)
 
-	VoidBody* CurrentScene = nullptr;
+	VoidBody* CurrentScene = nullptr;  // Não é recomendado a alocação manual. Use PlayScene(VoidBody Scene)
 
 	bool Running = true;
 	ColorRGBA BackgroundColor;
@@ -165,6 +210,9 @@ public:
 
 	KMD_Core() {}
 
+	void PlayScene(VoidBody* Scene);
+	void InsertCamera(Camera2D* Camera);
+
 private:
 
 	void RenderScene();
@@ -172,6 +220,7 @@ private:
 public:
 
 	void InitCore(const char* title, Vector2 size, SDL_WindowFlags window_flags);
+	void RunCore();
 
 	void StopCore();
 

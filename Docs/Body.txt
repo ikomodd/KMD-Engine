@@ -1,0 +1,30 @@
+(Em progresso...)
+
+Como usar um Body?
+
+Um Body é um corpo que representam tudo o que for estar presente
+fisicamente ou não no seu jogo. Sendo Personagens, Colisores
+ou até mesmo pontos imaginários no espaço.
+
+Bodyes Disponiveis:
+
+	VoidBody:
+
+		Descrição: Um corpo vazio, a base para todo o sistema de hierarquia e identificação de um corpo.
+
+		Metodos:
+
+			Construtor: (const char* name)
+			Variavel: string Name
+			Variavel: int ID
+			Variavel: VoidBody* Parent
+			Variavel: std::vector<VoidBody*> Children
+			Função: void AddBody(VoidBody* body)
+			Função: void RemoveBody(const char* body_name)
+			Função: void ClearAllChildren()
+			Função: VoidBody* GetBody(const char* Body_name);
+			Função: std::vector<VoidBody*> GetAllChildren();
+
+	Body2D:
+
+		Descrição: Um Corpo com dimensões e posição em dois vetores (2D)
