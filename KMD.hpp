@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <vector>
+#include <unordered_map>
 #include <optional>
 
 #include <SDL3/SDL.h>
@@ -17,6 +18,20 @@
 
 extern SDL_Window* Window;
 extern SDL_Renderer* Renderer;
+
+// Enumeradores padroes
+
+	// Direction4: Enum de 4 direções
+
+enum class Direction4 {
+
+	UP_TO_DOWN,
+	DOWN_TO_UP,
+
+	LEFT_TO_RIGHT,
+	RIGHT_TO_LEFT
+
+};
 
 // Classes Variaveis: Classes para funcionalidades adicionais
 
@@ -87,11 +102,55 @@ struct Vector2 {
 	}
 };
 
+	// Animation2D: Unidade de animação
+
+class Animation2D {
+public:
+
+	float AnimationUpdateDelay = 0;
+
+	Vector2 StartFramePosition = {};
+	Vector2 FrameScale = {};
+
+	int PixelOffset = 0;
+
+	Direction4 UpdateDirection = Direction4::LEFT_TO_RIGHT;
+
+	int Size;
+
+	Animation2D(Vector2 start, int size, Vector2 scale, int pixel_offset, float update_delay, Direction4 update_direction = Direction4::LEFT_TO_RIGHT) : StartFramePosition(start), Size(size), FrameScale(scale), AnimationUpdateDelay(update_delay), PixelOffset(pixel_offset), UpdateDirection(update_direction) {};
+	~Animation2D() {};
+
+};
+
 	// Animator2D: Controla as animações e movimentação de imagens
 
 class Animator2D {
+
+	SDL_FRect* TextureRect = nullptr;
+
 public:
 
+	Uint64 LastAnimationUpdate = 0;
+
+	std::unordered_map<std::string, Animation2D*> Animations = {};
+
+	int Padding = 0;
+
+	int CurrentFrame = 0;
+
+	std::string CurrentAnimation = "";
+
+	Animator2D(SDL_FRect &texture_rect, int padding = 0) : TextureRect(&texture_rect), Padding(padding) {};
+	~Animator2D();
+
+	void LoadAnimation(std::string Name, Vector2 Start, int Size, Vector2 Scale, int PixelOffset, float UpdateDelay, Direction4 UpdateDirection = Direction4::LEFT_TO_RIGHT);
+	void DestroyAnimation();
+
+	void UpdateAnimator();
+
+	void PlayAnimation(std::string Name);
+	void StopAnimation();
 
 };
 
@@ -107,7 +166,7 @@ public:
 
 	SDL_FRect TextureRect = {};
 
-	SpriteCore2D(std::string TexturePath);
+	SpriteCore2D(std::string TexturePath, SDL_ScaleMode ScaleMode);
 	~SpriteCore2D();
 };
 

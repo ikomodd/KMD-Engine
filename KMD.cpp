@@ -24,14 +24,81 @@ void GetAllChildrenDFS(VoidBody* Parent, std::vector<VoidBody*>& List) {
 	}
 }
 
+// Funçoes Animator2D
+
+	// Construtor
+
+Animator2D::~Animator2D() {
+
+	for (auto Animation : Animations) {
+
+		delete Animation.second;
+
+	}
+
+}
+
+	// void LoadAnimation(std::string Name, int Size, Vector2 Scale, Uint64 UpdateDelay, Direction4 UpdateDirection = Direction4::LEFT_TO_RIGHT): Carrega uma animaçao no animador
+
+void Animator2D::LoadAnimation(std::string Name, Vector2 Start, int Size, Vector2 Scale, int PixelOffset, float UpdateDelay, Direction4 UpdateDirection) {
+
+	Animations[Name] = new Animation2D(Start, Size, Scale, PixelOffset, UpdateDelay, UpdateDirection);
+
+};
+
+	// void Animator2D::UpdateAnimator(): Atualiza as animaçoes
+
+void Animator2D::UpdateAnimator() {
+
+	Uint64 CurrentTimeTick = SDL_GetTicks();
+
+	Animation2D*& Animation = Animations[CurrentAnimation];
+
+		TextureRect->x = Padding + (Animation->StartFramePosition.X);
+		TextureRect->y = Padding + (Animation->StartFramePosition.Y);
+		TextureRect->w = Animation->FrameScale.X;
+		TextureRect->h = Animation->FrameScale.Y;
+
+		if (CurrentFrame < Animation->Size - 1) CurrentFrame++;
+		else CurrentFrame = 0;
+
+		switch (Animation->UpdateDirection) {
+		case Direction4::UP_TO_DOWN:
+
+			TextureRect->y = Padding + (CurrentFrame * (Animation->FrameScale.Y + Animation->PixelOffset));
+
+			break;
+		case Direction4::LEFT_TO_RIGHT:
+
+			TextureRect->x = Padding + (CurrentFrame * (Animation->FrameScale.X + Animation->PixelOffset));
+
+			break;
+	}
+}
+
+void Animator2D::PlayAnimation(std::string Name) {
+
+	if (Animations[Name]) {
+
+		CurrentAnimation = Name;
+
+		UpdateAnimator();
+	}
+	else std::cerr << "Animation: '" << Name << "' is invalid";
+
+
+}
+
 // Funçoes SpriteCore
 
 	// Construtor
 
-SpriteCore2D::SpriteCore2D(std::string TexturePath) {
+SpriteCore2D::SpriteCore2D(std::string TexturePath, SDL_ScaleMode ScaleMode) {
 
 	Surface = IMG_Load(TexturePath.c_str());
 	Texture = SDL_CreateTextureFromSurface(Renderer, Surface);
+	
+	SDL_SetTextureScaleMode(Texture, ScaleMode);
 
 	if (Texture == nullptr) std::cerr << SDL_GetError() << "\n";
 
@@ -235,11 +302,11 @@ Uint64 LastDeltaTimeTick = SDL_GetTicks();
 
 void KMD_Core::RenderScene() {
 
-	Uint64 CurentDeltaTimeTick = SDL_GetTicks();
+	Uint64 CurrentTimeTick = SDL_GetTicks();
 
-	double DeltaTime = (CurentDeltaTimeTick - LastDeltaTimeTick) / 1000.0;
+	double DeltaTime = (CurrentTimeTick - LastDeltaTimeTick) / 1000.0;
 
-	LastDeltaTimeTick = CurentDeltaTimeTick;
+	LastDeltaTimeTick = CurrentTimeTick;
 
 	//
 
@@ -251,12 +318,22 @@ void KMD_Core::RenderScene() {
 
 		if (auto Body = dynamic_cast<Body2D*>(VBody)) {
 			if (Body->SpriteCore == nullptr) continue;
-			
+
+			if (Body->SpriteCore->Animator && Body->SpriteCore->Animator->CurrentAnimation != "") {
+
+				if ((CurrentTimeTick - Body->SpriteCore->Animator->LastAnimationUpdate) > Body->SpriteCore->Animator->Animations[Body->SpriteCore->Animator->CurrentAnimation]->AnimationUpdateDelay * 1000) {
+					Body->SpriteCore->Animator->LastAnimationUpdate = CurrentTimeTick;
+
+					Body->SpriteCore->Animator->UpdateAnimator();
+				}
+			}
+
 			SDL_FRect VisibleRect = CurrentCamera->GetCameraOffset(Body, WindowSize);
+			SDL_FRect TextureRect = Body->SpriteCore->TextureRect;
 
-			if (Body->SpriteCore->Texture != nullptr) {
+			if (Body->SpriteCore->Texture) {
 
-				SDL_RenderTexture(Renderer, Body->SpriteCore->Texture, NULL, &VisibleRect);
+				SDL_RenderTexture(Renderer, Body->SpriteCore->Texture, &TextureRect, &VisibleRect);
 
 			}
 			else {
