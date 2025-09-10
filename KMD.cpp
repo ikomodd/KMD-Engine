@@ -38,57 +38,6 @@ Animator2D::~Animator2D() {
 
 }
 
-	// void LoadAnimation(std::string Name, int Size, Vector2 Scale, Uint64 UpdateDelay, Direction4 UpdateDirection = Direction4::LEFT_TO_RIGHT): Carrega uma animaçao no animador
-
-void Animator2D::LoadAnimation(std::string Name, Vector2 Start, int Size, Vector2 Scale, int PixelOffset, float UpdateDelay, Direction4 UpdateDirection) {
-
-	Animations[Name] = new Animation2D(Start, Size, Scale, PixelOffset, UpdateDelay, UpdateDirection);
-
-};
-
-	// void Animator2D::UpdateAnimator(): Atualiza as animaçoes
-
-void Animator2D::UpdateAnimator() {
-
-	Uint64 CurrentTimeTick = SDL_GetTicks();
-
-	Animation2D*& Animation = Animations[CurrentAnimation];
-
-		TextureRect->x = Padding + (Animation->StartFramePosition.X);
-		TextureRect->y = Padding + (Animation->StartFramePosition.Y);
-		TextureRect->w = Animation->FrameScale.X;
-		TextureRect->h = Animation->FrameScale.Y;
-
-		if (CurrentFrame < Animation->Size - 1) CurrentFrame++;
-		else CurrentFrame = 0;
-
-		switch (Animation->UpdateDirection) {
-		case Direction4::UP_TO_DOWN:
-
-			TextureRect->y = Padding + (CurrentFrame * (Animation->FrameScale.Y + Animation->PixelOffset));
-
-			break;
-		case Direction4::LEFT_TO_RIGHT:
-
-			TextureRect->x = Padding + (CurrentFrame * (Animation->FrameScale.X + Animation->PixelOffset));
-
-			break;
-	}
-}
-
-void Animator2D::PlayAnimation(std::string Name) {
-
-	if (Animations[Name]) {
-
-		CurrentAnimation = Name;
-
-		UpdateAnimator();
-	}
-	else std::cerr << "Animation: '" << Name << "' is invalid";
-
-
-}
-
 // Funçoes SpriteCore
 
 	// Construtor
@@ -108,10 +57,72 @@ SpriteCore2D::SpriteCore2D(std::string TexturePath, SDL_ScaleMode ScaleMode) {
 
 SpriteCore2D::~SpriteCore2D() {
 
-	delete Animator;
-
 	SDL_DestroyTexture(Texture);
 	SDL_DestroySurface(Surface);
+}
+
+// void LoadAnimation(std::string Name, int Size, Vector2 Scale, Uint64 UpdateDelay, Direction4 UpdateDirection = Direction4::LEFT_TO_RIGHT): Carrega uma animaçao no animador
+
+void Animator2D::LoadAnimation(std::string Name, Vector2 Start, int Size, Vector2 Scale, int PixelOffset, float UpdateDelay, Direction4 UpdateDirection) {
+
+	Animations[Name] = new Animation2D(Start, Size, Scale, PixelOffset, UpdateDelay, UpdateDirection);
+
+};
+
+// void Animator2D::UpdateAnimator(): Atualiza as animaçoes
+
+void Animator2D::UpdateAnimator() {
+
+	Uint64 CurrentTimeTick = SDL_GetTicks();
+
+	Animation2D*& Animation = Animations[CurrentAnimation];
+
+	if (CurrentFrame < Animation->Size - 1) CurrentFrame++;
+	else CurrentFrame = 0;
+
+	switch (Animation->UpdateDirection) {
+	case Direction4::UP_TO_DOWN:
+
+		SpriteCore->TextureRect.y = Padding + (CurrentFrame * (Animation->FrameScale.Y + Animation->PixelOffset));
+
+		break;
+	case Direction4::DOWN_TO_UP:
+
+		SpriteCore->TextureRect.y = Padding + (((Animation->Size - 1) - CurrentFrame) * (Animation->FrameScale.Y + Animation->PixelOffset));
+
+		break;
+	case Direction4::LEFT_TO_RIGHT:
+
+		SpriteCore->TextureRect.x = Padding + (CurrentFrame * (Animation->FrameScale.X + Animation->PixelOffset));
+
+		break;
+	case Direction4::RIGHT_TO_LEFT:
+
+		SpriteCore->TextureRect.x = Padding + (((Animation->Size - 1) - CurrentFrame) * (Animation->FrameScale.X + Animation->PixelOffset));
+
+		break;
+	}
+}
+
+void Animator2D::PlayAnimation(std::string Name) {
+
+	if (Animations[Name]) {
+
+		CurrentAnimation = Name;
+
+		SpriteCore->TextureRect.w = Animations[CurrentAnimation]->FrameScale.X;
+		SpriteCore->TextureRect.h = Animations[CurrentAnimation]->FrameScale.Y;
+
+		UpdateAnimator();
+	}
+	else std::cerr << "Animation: '" << Name << "' is invalid";
+
+}
+
+void Animator2D::StopAnimation(std::string Name) {
+
+	if (CurrentAnimation == Name) CurrentAnimation = "";
+
 }
 
 // Funçoes VoidBody
@@ -185,10 +196,32 @@ VoidBody::~VoidBody() {
 
 	// Destrutor
 
+Body2D::Body2D(const char* name, Vector2 position, Vector2 scale, SDL_FRect collision_shape) : VoidBody(name), Position(position), Scale(scale), CollisionShape(collision_shape) {
+
+	if (CollisionShape.w == 0 || CollisionShape.h == 0) CanCollide = false;
+
+}
+
 Body2D::~Body2D() {
 
+	delete Animator;
 	delete SpriteCore;
 
+}
+
+void Body2D::MoveAndCollide(VoidBody* Workspace, Vector2 NewPosition) {
+
+	std::vector<VoidBody*> Collisors = Workspace->GetAllChildren();
+
+	Position.X = NewPosition.X;
+
+	for (auto VBody : Collisors) {
+		if (Body2D* Body = dynamic_cast<Body2D*>(VBody)) {
+
+			
+
+		}
+	}
 }
 
 // Funçoes da Camera2D
@@ -319,12 +352,14 @@ void KMD_Core::RenderScene() {
 		if (auto Body = dynamic_cast<Body2D*>(VBody)) {
 			if (Body->SpriteCore == nullptr) continue;
 
-			if (Body->SpriteCore->Animator && Body->SpriteCore->Animator->CurrentAnimation != "") {
+			if (Body->Animator && Body->Animator->CurrentAnimation != "") {
 
-				if ((CurrentTimeTick - Body->SpriteCore->Animator->LastAnimationUpdate) > Body->SpriteCore->Animator->Animations[Body->SpriteCore->Animator->CurrentAnimation]->AnimationUpdateDelay * 1000) {
-					Body->SpriteCore->Animator->LastAnimationUpdate = CurrentTimeTick;
+				Animator2D* Animator = Body->Animator;
 
-					Body->SpriteCore->Animator->UpdateAnimator();
+				if ((CurrentTimeTick - Animator->LastAnimationUpdate) > Animator->Animations[Animator->CurrentAnimation]->AnimationUpdateDelay * 1000) {
+					Animator->LastAnimationUpdate = CurrentTimeTick;
+
+					Animator->UpdateAnimator();
 				}
 			}
 

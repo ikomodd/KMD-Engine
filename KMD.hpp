@@ -8,7 +8,6 @@
 #include <iostream>
 #include <vector>
 #include <unordered_map>
-#include <optional>
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
@@ -123,43 +122,10 @@ public:
 
 };
 
-	// Animator2D: Controla as animações e movimentação de imagens
-
-class Animator2D {
-
-	SDL_FRect* TextureRect = nullptr;
-
-public:
-
-	Uint64 LastAnimationUpdate = 0;
-
-	std::unordered_map<std::string, Animation2D*> Animations = {};
-
-	int Padding = 0;
-
-	int CurrentFrame = 0;
-
-	std::string CurrentAnimation = "";
-
-	Animator2D(SDL_FRect &texture_rect, int padding = 0) : TextureRect(&texture_rect), Padding(padding) {};
-	~Animator2D();
-
-	void LoadAnimation(std::string Name, Vector2 Start, int Size, Vector2 Scale, int PixelOffset, float UpdateDelay, Direction4 UpdateDirection = Direction4::LEFT_TO_RIGHT);
-	void DestroyAnimation();
-
-	void UpdateAnimator();
-
-	void PlayAnimation(std::string Name);
-	void StopAnimation();
-
-};
-
 	// SpriteSheet: Representa texturas e a visibilidade de um Body
 
 class SpriteCore2D {
 public:
-
-	Animator2D* Animator = nullptr;
 
 	SDL_Texture* Texture = nullptr;
 	SDL_Surface* Surface = nullptr;
@@ -170,12 +136,42 @@ public:
 	~SpriteCore2D();
 };
 
+// Animator2D: Controla as animações e movimentação de imagens
+
+class Animator2D {
+
+	SpriteCore2D* SpriteCore = nullptr;
+
+public:
+
+	Uint64 LastAnimationUpdate = 0;
+
+	std::unordered_map<std::string, Animation2D*> Animations = {};
+
+	int Padding = 0;
+
+	int CurrentFrame = 1;
+
+	std::string CurrentAnimation = "";
+
+	Animator2D(SpriteCore2D* sprite_core, int padding = 0) : SpriteCore(sprite_core), Padding(padding) {};
+	~Animator2D();
+
+	void LoadAnimation(std::string Name, Vector2 Start, int Size, Vector2 Scale, int PixelOffset, float UpdateDelay, Direction4 UpdateDirection = Direction4::LEFT_TO_RIGHT);
+
+	void UpdateAnimator();
+
+	void PlayAnimation(std::string Name);
+	void StopAnimation(std::string Name);
+
+};
+
 // Classes de corpos: Classes para qualquer coisa que esteja no jogo
 
 	// Hierarquia:
 	// 
 	// > VoidBody
-	// > > Body2D
+	// > > Body2D ( SpriteCore2D ( Animator2D ( Animation2D ) ) )
 	// > > > Camera2D
 
 	// VoidBody: A base de tudo, segura o sistema de hierarquia e identificação do corpo
@@ -218,7 +214,7 @@ public:
 
 };
 
-	// Body2D: Segura as dimensoes e posição 2D do corpo
+	// Body2D: Corpo de duas dimençoes que pode ter aparencia, posição, colisao, etc...
 
 class Body2D : public VoidBody {
 public:
@@ -227,11 +223,18 @@ public:
 	Vector2 Scale = {};
 
 	SpriteCore2D* SpriteCore = nullptr;
-	
-	std::optional<SDL_Rect> CollisionShape;
+	Animator2D* Animator = nullptr;
 
-	Body2D(const char* name = "Body2D Undefined", Vector2 position = {}, Vector2 scale = {})  : VoidBody(name), Position(position), Scale(scale) {};
+	
+	SDL_FRect CollisionShape;
+
+	bool CanCollide = true;
+
+	Body2D(const char* name = "Body2D Undefined", Vector2 position = {}, Vector2 scale = {}, SDL_FRect collision_shape);
 	~Body2D();
+
+	void MoveAndCollide(VoidBody* Workspace, Vector2 NewPosition);
+
 };
 
 	// Camera2D: A camera define o que é visivel no jogo. Necessário para a inicialização do Core
